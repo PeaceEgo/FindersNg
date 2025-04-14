@@ -5,12 +5,12 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
-"scripts": {
-  "build": "nest build",
-  "start": "nest start",
-  "start:dev": "nest start --watch",
-  "start:prod": "node dist/main"
-},
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main"
+  },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
@@ -23,6 +23,7 @@
     "dotenv": "^16.4.7",
     "google-auth-library": "^9.15.1",
     "mongoose": "^8.13.2",
+    "nodemailer": "^6.10.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",

@@ -56,7 +56,7 @@ export class DevicesService {
         await this.locationHistoryModel.create({
             deviceId,
             location: { latitude, longitude },
-            address: "Unknown Address", // Replace with geocoding in production
+            address: "Unknown Address", 
         });
 
         return { message: "Location updated successfully" };

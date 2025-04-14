@@ -7,6 +7,7 @@ import { VerificationCode, VerificationCodeSchema } from './schemas/verification
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { PassportModule } from '@nestjs/passport';
+import { MailService } from './mail.service';
 
 @Module({
     imports: [
@@ -23,5 +24,9 @@ import { PassportModule } from '@nestjs/passport';
     controllers: [AuthController],
     providers: [AuthService, JwtStrategy],
     exports: [JwtStrategy, PassportModule],
+
+  
+   
+  
 })
 export class AuthModule { }
