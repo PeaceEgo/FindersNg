@@ -58,7 +58,7 @@ export class AuthController {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 3600 * 1000,
+            maxAge: 7 * 24 * 60 * 60 * 1000, 
         });
         return { message: result.message, user: result.user };
     }
@@ -113,7 +113,7 @@ export class AuthController {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 3600 * 1000,
+            maxAge: 7 * 24 * 60 * 60 * 1000, 
         });
         return { message: result.message, user: result.user };
     }
@@ -144,30 +144,52 @@ export class AuthController {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 3600 * 1000,
+            maxAge: 7 * 24 * 60 * 60 * 1000, 
         });
         return { message: result.message, user: result.user };
     }
 
-    @Get('session')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth('JWT')
-    @ApiOperation({ summary: 'Get the current user session' })
-    @ApiResponse({ status: 200, description: 'User session retrieved', type: UserDto })
-    @ApiResponse({ status: 401, description: 'Not authenticated' })
-    async getSession(@Req() req: Request) {
-        const user = req.user as any;
-        return { user };
+    @Get('verify')
+    @ApiOperation({ summary: 'Verify the session token' })
+    @ApiResponse({ status: 200, description: 'Token is valid' })
+    @ApiResponse({ status: 401, description: 'Invalid token or no token provided' })
+    async verifyToken(@Req() req: Request) {
+        const token = req.cookies['session-token'];
+        if (!token) {
+            throw new UnauthorizedException("No token provided");
+        }
+        return this.authService.verifyToken(token);
     }
 
-    @Post('logout')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth('JWT')
+    @Post('logout') 
     @ApiOperation({ summary: 'Log out the current user' })
     @ApiResponse({ status: 200, description: 'Logged out successfully' })
     @ApiResponse({ status: 401, description: 'Not authenticated' })
     async logout(@Res({ passthrough: true }) res: Response) {
-        res.clearCookie('session-token');
-        return { message: "Logged out successfully" };
+        const result = await this.authService.logout();
+        res.clearCookie('session-token', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+        });
+        return result;
+    }
+}
+
+@ApiTags('User')
+@Controller('user')
+export class UserController {
+    constructor(private authService: AuthService) { }
+
+    @Get('me')
+    @ApiOperation({ summary: 'Get the current user information' })
+    @ApiResponse({ status: 200, description: 'User information retrieved', type: UserDto })
+    @ApiResponse({ status: 401, description: 'Not authenticated' })
+    async getUser(@Req() req: Request) {
+        const token = req.cookies['session-token'];
+        if (!token) {
+            throw new UnauthorizedException("No token provided");
+        }
+        return this.authService.getUserFromToken(token);
     }
 }

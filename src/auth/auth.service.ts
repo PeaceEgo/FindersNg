@@ -21,13 +21,16 @@ export class AuthService {
     async sendEmailCode(email: string) {
         const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-        
-        await this.codeModel.deleteMany({ identifier: email });
-
-        await this.codeModel.create({ identifier: email, code });
-        await this.mailService.sendVerificationCode(email, code);
-
-        return { message: "Verification code sent" };
+        try {
+            await this.codeModel.deleteMany({ identifier: email });
+            await this.codeModel.create({ identifier: email, code });
+            const result = await this.mailService.sendVerificationCode(email, code);
+            console.log('sendEmailCode result:', result);
+            return { message: "Verification code sent" };
+        } catch (error) {
+            console.error('Error in sendEmailCode:', error);
+            throw new Error('Failed to send verification code');
+        }
     }
 
     async verifyEmailCode(email: string, code: string) {
@@ -49,7 +52,7 @@ export class AuthService {
         return {
             message: "Email verification successful",
             user: { email: user.email, firstName: user.firstName },
-            token
+            token,
         };
     }
 
@@ -61,9 +64,17 @@ export class AuthService {
 
         if (process.env.NODE_ENV !== 'production') {
             console.log(`Verification code for ${phoneNumber}: ${code}`);
+        } else {
+            // TODO: Integrate with WhatsApp API (e.g., Twilio or WhatsApp Business API)
+            // Example with Twilio:
+            // const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+            // await client.messages.create({
+            //   body: `Your verification code is ${code}`,
+            //   from: 'whatsapp:+14155238886',
+            //   to: `whatsapp:${phoneNumber}`
+            // });
         }
 
-        // Replace this with WhatsApp API integration in production
         return { message: "Verification code sent" };
     }
 
@@ -79,7 +90,7 @@ export class AuthService {
         if (!user) {
             user = await this.userModel.create({
                 phoneNumber,
-                firstName: firstName || "User"
+                firstName: firstName || "User",
             });
         }
 
@@ -89,7 +100,7 @@ export class AuthService {
         return {
             message: "WhatsApp verification successful",
             user: { phoneNumber: user.phoneNumber, firstName: user.firstName },
-            token
+            token,
         };
     }
 
@@ -111,7 +122,7 @@ export class AuthService {
             user = await this.userModel.create({
                 googleId,
                 email,
-                firstName: name?.split(" ")[0] || "User"
+                firstName: name?.split(" ")[0] || "User",
             });
         }
 
@@ -121,7 +132,7 @@ export class AuthService {
         return {
             message: "Google sign-in successful",
             user: { email: user.email, firstName: user.firstName },
-            token: jwtToken
+            token: jwtToken,
         };
     }
 
@@ -136,7 +147,27 @@ export class AuthService {
         return {
             email: user.email,
             phoneNumber: user.phoneNumber,
-            firstName: user.firstName
+            firstName: user.firstName,
         };
+    }
+
+    async verifyToken(token: string) {
+        try {
+            const payload = this.jwtService.verify(token);
+            const user = await this.userModel.findById(payload.userId);
+            if (!user) {
+                throw new UnauthorizedException("User not found");
+            }
+            return { message: "Token is valid" };
+        } catch (error) {
+            throw new UnauthorizedException("Invalid token");
+        }
+    }
+
+    async logout() {
+        // Since we're using JWT, the token is stateless.
+        // We can either maintain a blacklist of tokens or simply rely on the frontend to delete the cookie.
+        // For simplicity, we'll return a response that instructs the frontend to delete the cookie.
+        return { message: "Logged out successfully" };
     }
 }
