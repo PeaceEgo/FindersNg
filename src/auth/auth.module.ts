@@ -22,7 +22,7 @@ import { MailService } from './mail.service';
         }),
     ],
     controllers: [AuthController],
-    providers: [AuthService, JwtStrategy],
+    providers: [AuthService, JwtStrategy,MailService],
     exports: [JwtStrategy, PassportModule],
 
   
