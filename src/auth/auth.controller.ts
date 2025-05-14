@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Req, Res, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Get, Req, Res, UnauthorizedException, BadRequestException, Query } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
@@ -37,22 +37,24 @@ export class AuthController {
             properties: {
                 email: { type: 'string', example: 'test@example.com' },
                 code: { type: 'string', example: '123456' },
+                userName: { type: 'string', example: 'john_doe', nullable: true },
             },
             required: ['email', 'code'],
         },
     })
-    @ApiResponse({ status: 200, description: 'Email verification successful', type: UserDto })
+    @ApiResponse({ status: 200, description: 'Authentication successful', type: UserDto })
     @ApiResponse({ status: 400, description: 'Email and code are required' })
     @ApiResponse({ status: 401, description: 'Invalid verification code' })
     async verifyEmailCode(
         @Body('email') email: string,
         @Body('code') code: string,
+        @Body('userName') userName: string,
         @Res({ passthrough: true }) res: Response,
     ) {
         if (!email || !code) {
             throw new BadRequestException('Email and code are required');
         }
-        const result = await this.authService.verifyEmailCode(email, code);
+        const result = await this.authService.verifyEmailCode(email, code, userName);
         res.cookie('session-token', result.token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -63,29 +65,31 @@ export class AuthController {
     }
 
     @Post('email/login')
-    @ApiOperation({ summary: 'Log in with email and optional token' })
+    @ApiOperation({ summary: 'Log in with email and username' })
     @ApiBody({
         schema: {
             type: 'object',
             properties: {
                 email: { type: 'string', example: 'test@example.com' },
-                token: { type: 'string', example: 'jwt-token', nullable: true },
+                userName: { type: 'string', example: 'john_doe' },
             },
-            required: ['email'],
+            required: ['email', 'userName'],
         },
     })
     @ApiResponse({ status: 200, description: 'Login successful or verification code sent', type: UserDto })
-    @ApiResponse({ status: 400, description: 'Email is required' })
-    @ApiResponse({ status: 401, description: 'User not found' })
+    @ApiResponse({ status: 400, description: 'Email and userName are required' })
+    @ApiResponse({ status: 401, description: 'Invalid credentials' })
     async loginWithEmail(
         @Body('email') email: string,
-        @Body('token') token: string,
+        @Body('userName') userName: string,
+        @Req() req: Request,
         @Res({ passthrough: true }) res: Response,
     ) {
-        if (!email) {
-            throw new BadRequestException('Email is required');
+        if (!email || !userName) {
+            throw new BadRequestException('Email and userName are required');
         }
-        const result = await this.authService.loginWithEmail(email, token);
+        const token = req.cookies['session-token'];
+        const result = await this.authService.loginWithEmail(email, userName, token);
         if (result.token) {
             res.cookie('session-token', result.token, {
                 httpOnly: true,
@@ -97,8 +101,55 @@ export class AuthController {
         return { message: result.message, user: result.user };
     }
 
+    @Post('email/signup')
+    @ApiOperation({ summary: 'Sign up with email and username' })
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                email: { type: 'string', example: 'test@example.com' },
+                userName: { type: 'string', example: 'john_doe' },
+            },
+            required: ['email', 'userName'],
+        },
+    })
+    @ApiResponse({ status: 200, description: 'Verification code sent' })
+    @ApiResponse({ status: 400, description: 'Email and userName are required' })
+    async signUpWithEmail(@Body('email') email: string, @Body('userName') userName: string) {
+        if (!email || !userName) {
+            throw new BadRequestException('Email and userName are required');
+        }
+        return this.authService.sendEmailCode(email);
+    }
+
+    @Get('google/login')
+    @ApiOperation({ summary: 'Initiate Google OAuth login' })
+    @ApiResponse({ status: 302, description: 'Redirects to Google OAuth page' })
+    async googleLogin(@Res() res: Response) {
+        const url = await this.authService.getGoogleAuthUrl();
+        res.redirect(url);
+    }
+
+    @Get('google/callback')
+    @ApiOperation({ summary: 'Handle Google OAuth callback' })
+    @ApiResponse({ status: 302, description: 'Redirects to dashboard on success' })
+    @ApiResponse({ status: 401, description: 'Invalid Google authorization code' })
+    async googleCallback(@Query('code') code: string, @Res({ passthrough: true }) res: Response) {
+        if (!code) {
+            throw new BadRequestException('Authorization code is required');
+        }
+        const result = await this.authService.googleSignIn(code);
+        res.cookie('session-token', result.token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+        res.redirect('/dashboard');
+    }
+
     @Post('google')
-    @ApiOperation({ summary: 'Sign in with Google OAuth' })
+    @ApiOperation({ summary: 'Sign in with Google OAuth (deprecated)' })
     @ApiBody({
         schema: {
             type: 'object',

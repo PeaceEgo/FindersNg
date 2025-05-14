@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 
 export interface User extends Document {
     _id: string;
-    firstName: string;
+    userName: string;
     email?: string;
     googleId?: string;
 }
@@ -13,10 +13,10 @@ export class User extends Document {
     declare _id: string;
 
     @Prop({ required: true })
-    firstName: string;
+    userName: string;
 
     @Prop({ unique: true, sparse: true })
-    email?: string;                                                                                                 
+    email?: string;
 
     @Prop({ unique: true, sparse: true })
     googleId?: string;
