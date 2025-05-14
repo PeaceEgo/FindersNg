@@ -1,11 +1,11 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User } from './schemas/user.schema';
-import { VerificationCode } from './schemas/verification-code.schema';
+import { User } from '../auth/schemas/user.schema';
+import { VerificationCode } from '../auth/schemas/verification-code.schema';
 import { JwtService } from '@nestjs/jwt';
 import { OAuth2Client } from 'google-auth-library';
-import { MailService } from './mail.service';
+import { MailService } from '../auth/mail.service';
 import { UserSchema } from 'src/auth/schemas/user.schema';
 
 @Injectable()
