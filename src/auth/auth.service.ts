@@ -10,7 +10,7 @@ import { MailService } from './mail.service';
 @Injectable()
 export class AuthService {
     private googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
+ 
     constructor(
         @InjectModel(User.name) private userModel: Model<User>,
         @InjectModel(VerificationCode.name) private codeModel: Model<VerificationCode>,
@@ -56,54 +56,6 @@ export class AuthService {
         };
     }
 
-    async sendWhatsAppCode(phoneNumber: string) {
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-        await this.codeModel.deleteMany({ identifier: phoneNumber });
-        await this.codeModel.create({ identifier: phoneNumber, code });
-
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(`Verification code for ${phoneNumber}: ${code}`);
-        } else {
-            // TODO: Integrate with WhatsApp API (e.g., Twilio or WhatsApp Business API)
-            // Example with Twilio:
-            // const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-            // await client.messages.create({
-            //   body: `Your verification code is ${code}`,
-            //   from: 'whatsapp:+14155238886',
-            //   to: `whatsapp:${phoneNumber}`
-            // });
-        }
-
-        return { message: "Verification code sent" };
-    }
-
-    async verifyWhatsAppCode(phoneNumber: string, code: string, firstName: string) {
-        const verification = await this.codeModel.findOne({ identifier: phoneNumber, code });
-        if (!verification) {
-            throw new UnauthorizedException("Invalid verification code");
-        }
-
-        await this.codeModel.deleteOne({ _id: verification._id });
-
-        let user = await this.userModel.findOne({ phoneNumber });
-        if (!user) {
-            user = await this.userModel.create({
-                phoneNumber,
-                firstName: firstName || "User",
-            });
-        }
-
-        const payload = { userId: user._id, phoneNumber: user.phoneNumber, firstName: user.firstName };
-        const token = this.jwtService.sign(payload, { expiresIn: '7d' });
-
-        return {
-            message: "WhatsApp verification successful",
-            user: { phoneNumber: user.phoneNumber, firstName: user.firstName },
-            token,
-        };
-    }
-
     async googleSignIn(token: string) {
         const ticket = await this.googleClient.verifyIdToken({
             idToken: token,
@@ -136,6 +88,36 @@ export class AuthService {
         };
     }
 
+    async loginWithEmail(email: string, token?: string) {
+        let user = await this.userModel.findOne({ email });
+        if (!user) {
+            throw new UnauthorizedException("User not found");
+        }
+
+        // Check if token is provided and valid
+        if (token) {
+            try {
+                const payload = this.jwtService.verify(token);
+                if (payload.userId === user._id.toString() && payload.email === user.email) {
+                    // Token is valid, generate new token
+                    const newPayload = { userId: user._id, email: user.email, firstName: user.firstName };
+                    const newToken = this.jwtService.sign(newPayload, { expiresIn: '7d' });
+                    return {
+                        message: "Login successful",
+                        user: { email: user.email, firstName: user.firstName },
+                        token: newToken,
+                    };
+                }
+            } catch (error) {
+                // Token is invalid or expired, require verification code
+            }
+        }
+
+        // No valid token, send verification code
+        await this.sendEmailCode(email);
+        return { message: "Verification code sent, please verify to complete login" };
+    }
+
     async getUserFromToken(token: string) {
         const payload = this.jwtService.verify(token);
         const user = await this.userModel.findById(payload.userId);
@@ -146,7 +128,6 @@ export class AuthService {
 
         return {
             email: user.email,
-            phoneNumber: user.phoneNumber,
             firstName: user.firstName,
         };
     }
@@ -165,9 +146,6 @@ export class AuthService {
     }
 
     async logout() {
-        // Since we're using JWT, the token is stateless.
-        // We can either maintain a blacklist of tokens or simply rely on the frontend to delete the cookie.
-        // For simplicity, we'll return a response that instructs the frontend to delete the cookie.
         return { message: "Logged out successfully" };
     }
 }

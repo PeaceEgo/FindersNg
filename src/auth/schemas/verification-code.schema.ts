@@ -4,12 +4,12 @@ import { Document } from 'mongoose';
 @Schema({ timestamps: true })
 export class VerificationCode extends Document {
     @Prop({ required: true })
-    identifier: string; // email or phoneNumber
+    identifier: string; 
 
     @Prop({ required: true })
     code: string;
 
-    @Prop({ expires: 600 }) // Expire after 10 minutes
+    @Prop({ expires: 60 }) 
     createdAt: Date;
 }
 

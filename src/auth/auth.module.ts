@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { AuthController } from './auth.controller';
+import { UserController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from './schemas/user.schema';
@@ -21,7 +21,7 @@ import { MailService } from './mail.service';
             signOptions: { expiresIn: '1h' },
         }),
     ],
-    controllers: [AuthController],
+    controllers: [UserController],
     providers: [AuthService, JwtStrategy,MailService],
     exports: [JwtStrategy, PassportModule],
 
