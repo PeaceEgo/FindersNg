@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { UserController } from './auth.controller';
+import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from './schemas/user.schema';
@@ -18,15 +18,11 @@ import { MailService } from './mail.service';
         PassportModule.register({ defaultStrategy: 'jwt' }),
         JwtModule.register({
             secret: process.env.JWT_SECRET,
-            signOptions: { expiresIn: '1h' },
+            signOptions: { expiresIn: '7d' },
         }),
     ],
-    controllers: [UserController],
-    providers: [AuthService, JwtStrategy,MailService],
+    controllers: [AuthController],
+    providers: [AuthService, JwtStrategy, MailService],
     exports: [JwtStrategy, PassportModule],
-
-  
-   
-  
 })
 export class AuthModule { }
