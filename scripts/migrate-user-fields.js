@@ -5,10 +5,8 @@
 
 // Fix: Remove "MONGODB_URI=" from the connection string
 const MONGODB_URI =
-    process.env.MONGODB_URI ||
-    "mongodb+srv://finders:findersdb@nestdb.ukftfc6.mongodb.net/findmydeviceng?retryWrites=true&w=majority"
-
-// Fix: Use require instead of import for CommonJS compatibility
+    process.env.MONGODB_URI
+   
 const { MongoClient } = require("mongodb")
 
 async function migrateUserFields() {
