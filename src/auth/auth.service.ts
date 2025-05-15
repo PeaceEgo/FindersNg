@@ -112,35 +112,50 @@ export class AuthService {
     }
 
     async loginWithEmail(email: string, userName: string, token?: string) {
-        let user = await this.userModel.findOne({ email });
-        if (!user) {
-            throw new UnauthorizedException('User not found');
-        }
-        if (user.userName !== userName) {
-            throw new UnauthorizedException('Invalid username');
-        }
-
-        if (token) {
-            try {
-                const payload = this.jwtService.verify(token);
-                if (payload.userId === user._id.toString() && payload.email === user.email && payload.userName === user.userName) {
-                    const newPayload = { userId: user._id, email: user.email, userName: user.userName };
-                    const newToken = this.jwtService.sign(newPayload, { expiresIn: '7d' });
-                    return {
-                        message: 'Login successful',
-                        user: { email: user.email, userName: user.userName },
-                        token: newToken,
-                    };
-                }
-            } catch (error) {
-                // Token invalid or expired
+        try {
+            console.log('loginWithEmail called with:', { email, userName, token });
+            const user = await this.userModel.findOne({ email });
+            if (!user) {
+                console.log('User not found for email:', email);
+                throw new UnauthorizedException('User not found');
             }
+            if (user.userName !== userName) {
+                console.log('Invalid username for user:', { email, userName });
+                throw new UnauthorizedException('Invalid username');
+            }
+
+            if (token) {
+                try {
+                    const payload = this.jwtService.verify(token);
+                    console.log('Token payload:', payload);
+                    if (
+                        payload.userId === user._id.toString() &&
+                        payload.email === user.email &&
+                        payload.userName === user.userName
+                    ) {
+                        const newPayload = { userId: user._id, email: user.email, userName: user.userName };
+                        const newToken = this.jwtService.sign(newPayload, { expiresIn: '7d' });
+                        console.log('Login successful, new token generated');
+                        return {
+                            message: 'Login successful',
+                            user: { email: user.email, userName: user.userName },
+                            token: newToken,
+                        };
+                    }
+                } catch (error) {
+                    console.error('Token verification failed:', error.message);
+                    // Proceed to send verification code
+                }
+            }
+
+            console.log('No valid token, sending verification code');
+            await this.sendEmailCode(email);
+            return { message: 'Verification code sent, please verify to complete login' };
+        } catch (error) {
+            console.error('Error in loginWithEmail:', error);
+            throw error; 
         }
-
-        await this.sendEmailCode(email);
-        return { message: 'Verification code sent, please verify to complete login' };
     }
-
     async getUserFromToken(token: string) {
         const payload = this.jwtService.verify(token);
         const user = await this.userModel.findById(payload.userId);
